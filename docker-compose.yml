@@ -1,0 +1,170 @@
+# =============================================================================
+# Chulx — Docker Compose Configuration
+# =============================================================================
+# Services: PostgreSQL 15 + PostGIS 3.3, Redis 7, PHP 8.3-FPM, Nginx, Mailpit
+# Usage:    docker compose up -d
+#           docker compose exec app php artisan migrate
+# =============================================================================
+
+name: chulx
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 15 with PostGIS 3.3
+  # ---------------------------------------------------------------------------
+  # PostGIS provides spatial/geographic data types and functions.
+  # The init script auto-creates the PostGIS extension on first boot.
+  # ---------------------------------------------------------------------------
+  pgsql:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: chulx-pgsql
+    restart: unless-stopped
+    ports:
+      - "${FORWARD_DB_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: "${DB_DATABASE:-chulx}"
+      POSTGRES_USER: "${DB_USERNAME:-chulx}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-secret}"
+      # Ensure PostGIS extension is created automatically
+      POSTGRES_INITDB_ARGS: "--locale=en_US.UTF-8"
+    volumes:
+      - pgsql-data:/var/lib/postgresql/data
+      - ./docker/pgsql/init-postgis.sql:/docker-entrypoint-initdb.d/10-postgis.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-chulx} -d ${DB_DATABASE:-chulx}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - chulx
+
+  # ---------------------------------------------------------------------------
+  # Redis 7 (Alpine)
+  # ---------------------------------------------------------------------------
+  # Used for cache (db 1), sessions (db 0), queues (db 0), and broadcasting.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: chulx-redis
+    restart: unless-stopped
+    ports:
+      - "${FORWARD_REDIS_PORT:-6379}:6379"
+    command: >
+      redis-server
+        --appendonly yes
+        --maxmemory 256mb
+        --maxmemory-policy allkeys-lru
+        --requirepass "${REDIS_PASSWORD:-}"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chulx
+
+  # ---------------------------------------------------------------------------
+  # Laravel Application (PHP 8.3-FPM)
+  # ---------------------------------------------------------------------------
+  # Runs PHP-FPM. Nginx proxies FastCGI requests here on port 9000.
+  # The Dockerfile installs pdo_pgsql, redis, gd, intl, and pcntl extensions.
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+      args:
+        PHP_VERSION: "8.4"
+    container_name: chulx-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      - ./docker/app/php-local.ini:/usr/local/etc/php/conf.d/99-local.ini:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      pgsql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PHP_OPCACHE_ENABLE: 0          # Disabled for local dev
+      XDEBUG_MODE: "${XDEBUG_MODE:-off}"
+    networks:
+      - chulx
+
+  # ---------------------------------------------------------------------------
+  # Queue Worker
+  # ---------------------------------------------------------------------------
+  # Dedicated container for processing Laravel queues.
+  # ---------------------------------------------------------------------------
+  queue:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    container_name: chulx-queue
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      app:
+        condition: service_started
+    networks:
+      - chulx
+
+  # ---------------------------------------------------------------------------
+  # Nginx Reverse Proxy
+  # ---------------------------------------------------------------------------
+  # Serves static files directly; proxies PHP to the app container via FastCGI.
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: chulx-nginx
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-80}:80"
+      - "${APP_SSL_PORT:-443}:443"
+    volumes:
+      - .:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - chulx
+
+  # ---------------------------------------------------------------------------
+  # Mailpit — Local Email Testing
+  # ---------------------------------------------------------------------------
+  # Web UI: http://localhost:8025    SMTP: localhost:1025
+  # ---------------------------------------------------------------------------
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: chulx-mailpit
+    restart: unless-stopped
+    ports:
+      - "${MAIL_PORT:-1025}:1025"       # SMTP
+      - "${MAILPIT_UI_PORT:-8025}:8025" # Web UI
+    networks:
+      - chulx
+
+# =============================================================================
+# Volumes — Persistent data survives container recreation
+# =============================================================================
+volumes:
+  pgsql-data:
+    driver: local
+  redis-data:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  chulx:
+    driver: bridge

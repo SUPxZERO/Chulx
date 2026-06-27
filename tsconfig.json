@@ -1,0 +1,54 @@
+{
+    "compilerOptions": {
+        // ── Language & Output ────────────────────────────────────────────
+        "target": "ES2022",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+        // ── JSX — React 19 automatic runtime ────────────────────────────
+        "jsx": "react-jsx",
+
+        // ── Strictness ──────────────────────────────────────────────────
+        "strict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noFallthroughCasesInSwitch": true,
+        "forceConsistentCasingInFileNames": true,
+
+        // ── Interop ─────────────────────────────────────────────────────
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "isolatedModules": true,
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "verbatimModuleSyntax": false,
+
+        // ── Path Aliases — must mirror vite.config.ts ───────────────────
+        "baseUrl": ".",
+        "paths": {
+            "@/*":           ["resources/js/*"],
+            "@components/*": ["resources/js/components/*"],
+            "@pages/*":      ["resources/js/pages/*"],
+            "@hooks/*":      ["resources/js/hooks/*"],
+            "@stores/*":     ["resources/js/stores/*"],
+            "@lib/*":        ["resources/js/lib/*"],
+            "@types/*":      ["resources/js/types/*"],
+            "@locales/*":    ["resources/js/locales/*"]
+        },
+
+        // ── Emit ────────────────────────────────────────────────────────
+        "noEmit": true
+    },
+    "include": [
+        "resources/js/**/*.ts",
+        "resources/js/**/*.tsx",
+        "resources/js/**/*.d.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "vendor",
+        "public",
+        "storage"
+    ]
+}

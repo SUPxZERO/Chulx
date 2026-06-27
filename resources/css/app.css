@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+/* ============================================================================
+ * Chulx — Global Styles & Design Tokens
+ * ============================================================================
+ * Premium dark+gold theme for Cambodia's Cultural Ambassador marketplace.
+ * Uses TailwindCSS 4 with @theme for custom design tokens.
+ * ============================================================================ */
+
+@theme {
+  /* ── Brand Colors ─────────────────────────────────────────────────────── */
+  --color-chulx-dark: #0F0F23;
+  --color-chulx-card: #1A1A3E;
+  --color-chulx-card-hover: #232350;
+  --color-chulx-gold: #D4AF37;
+  --color-chulx-gold-light: #FFD700;
+  --color-chulx-gold-muted: #B8962E;
+  --color-chulx-text: #E8E8E8;
+  --color-chulx-text-muted: #9CA3AF;
+  --color-chulx-border: rgba(212, 175, 55, 0.15);
+  --color-chulx-glass: rgba(26, 26, 62, 0.80);
+
+  /* ── Status Colors ────────────────────────────────────────────────────── */
+  --color-status-available: #22C55E;
+  --color-status-busy: #F59E0B;
+  --color-status-offline: #6B7280;
+  --color-status-pending: #3B82F6;
+  --color-status-funded: #8B5CF6;
+  --color-status-disputed: #EF4444;
+  --color-status-completed: #10B981;
+  --color-status-paid: #D4AF37;
+
+  /* ── Typography ───────────────────────────────────────────────────────── */
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  /* ── Spacing & Radius ─────────────────────────────────────────────────── */
+  --radius-card: 16px;
+  --radius-button: 12px;
+  --radius-input: 10px;
+  --radius-badge: 9999px;
+}
+
+/* ── Base Resets ──────────────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--color-chulx-dark);
+  color: var(--color-chulx-text);
+  font-family: var(--font-body);
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-chulx-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-chulx-gold-muted);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-chulx-gold);
+}
+
+/* ── Selection ───────────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(212, 175, 55, 0.3);
+  color: #fff;
+}
+
+/* ── Focus Ring ──────────────────────────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--color-chulx-gold);
+  outline-offset: 2px;
+}
+
+/* ── Gold Gradient Text Utility ──────────────────────────────────────────── */
+.text-gold-gradient {
+  background: linear-gradient(135deg, #D4AF37, #FFD700, #D4AF37);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Glass Card Utility ──────────────────────────────────────────────────── */
+.glass-card {
+  background: rgba(26, 26, 62, 0.80);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+.glass-card:hover {
+  border-color: rgba(212, 175, 55, 0.3);
+}
