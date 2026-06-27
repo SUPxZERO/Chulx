@@ -50,6 +50,11 @@ class ChatController extends Controller
             
             // Note: If this was the 3rd strike, the user's JWT is now invalidated, 
             // but we still save the redacted message to the DB for the audit trail.
+            
+            // Cancel booking if user was suspended
+            if (!$request->user()->fresh()->is_active) {
+                app(\App\Services\BookingService::class)->cancel($booking, 'Terminated automatically due to strict platform Lexicon violations.');
+            }
         }
 
         $message = ChatMessage::create([

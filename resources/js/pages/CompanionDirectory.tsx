@@ -1,114 +1,163 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useCompanions } from '@/hooks/useCompanions';
+import { MapPin, Navigation, Star } from 'lucide-react';
+import Card from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import Spinner from '@/components/ui/Spinner';
+import Button from '@/components/ui/Button';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 
 export default function CompanionDirectory() {
-    const { data: companions, isLoading } = useQuery({
-        queryKey: ['companions'],
-        queryFn: async () => {
-            // Mock API for now
-            return [
-                { id: 1, name: 'Sokha R.', rate: 150, language: 'EN, KM', verified: true, role: 'Wedding Plus-One', rating: 4.8 },
-                { id: 2, name: 'Chan T.', rate: 50, language: 'EN, ZH', verified: true, role: 'Corporate Fixer', rating: 4.9 },
-                { id: 3, name: 'Bopha K.', rate: 25, language: 'FR, KM', verified: false, role: 'Cultural Translator', rating: 4.5 },
-                { id: 4, name: 'Vannak S.', rate: 200, language: 'EN, JA', verified: true, role: 'VIP Escort', rating: 5.0 },
-                { id: 5, name: 'Malis C.', rate: 80, language: 'EN, KO', verified: true, role: 'Tour Guide', rating: 4.7 },
-            ];
-        }
-    });
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [radiusKm, setRadiusKm] = useState(10);
+  const [isLocating, setIsLocating] = useState(false);
 
-    return (
-        <div className="max-w-3xl mx-auto py-12 px-4 md:px-0">
-            {/* Header Area */}
-            <motion.div 
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-                className="mb-12 text-center"
-            >
-                <h1 className="text-4xl md:text-5xl font-extrabold text-gold-gradient tracking-tight drop-shadow-sm font-['Outfit']">
-                    The Directory
-                </h1>
-                <p className="text-slate-400 mt-3 text-lg">Curated professionals for your exact needs.</p>
-            </motion.div>
+  const { data, isLoading, error } = useCompanions({
+    ...(coords ? { latitude: coords.latitude, longitude: coords.longitude } : {}),
+    radius_km: radiusKm,
+  });
 
-            {/* Anti-Swipe Vertical List */}
-            <div className="flex flex-col space-y-8">
-                {isLoading ? (
-                    <div className="text-center text-slate-400 animate-pulse text-lg">Loading Directory...</div>
-                ) : (
-                    companions?.map((comp, index) => (
-                        <motion.div 
-                            key={comp.id} 
-                            initial={{ opacity: 0, y: 30 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, margin: "-50px" }}
-                            transition={{ duration: 0.5, delay: index * 0.1 }}
-                            whileHover={{ scale: 1.02, y: -2 }}
-                            className="relative overflow-hidden glass-card rounded-2xl p-6 shadow-2xl transition-all duration-300 group"
-                        >
-                            {/* Glassmorphism gradient effect */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            
-                            <div className="relative z-10 flex flex-col md:flex-row gap-6 items-center md:items-start">
-                                {/* Avatar / Placeholder */}
-                                <div className="w-24 h-24 shrink-0 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 border border-slate-500 shadow-inner flex items-center justify-center text-3xl font-bold text-white tracking-widest overflow-hidden group-hover:shadow-[0_0_20px_rgba(255,215,0,0.2)] transition-shadow">
-                                    {comp.name.charAt(0)}
-                                </div>
-                                
-                                {/* Info Container */}
-                                <div className="flex-1 text-center md:text-left space-y-2">
-                                    <div className="flex flex-col md:flex-row md:justify-between md:items-center">
-                                        <h3 className="text-2xl font-bold text-slate-100 font-['Outfit'] tracking-wide">
-                                            {comp.name} 
-                                            {comp.verified && (
-                                                <span className="inline-flex ml-2 items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 align-middle">
-                                                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
-                                                    KYC
-                                                </span>
-                                            )}
-                                        </h3>
-                                        <div className="mt-2 md:mt-0 flex flex-col items-center md:items-end">
-                                            <div className="text-2xl font-black text-gold-gradient">
-                                                ${comp.rate}<span className="text-sm font-normal text-slate-400">/hr</span>
-                                            </div>
-                                            <div className="text-sm text-yellow-500 flex items-center mt-1">
-                                                <span className="mr-1">★</span> {comp.rating}
-                                            </div>
-                                        </div>
-                                    </div>
+  const getLocation = () => {
+    setIsLocating(true);
+    setGeoError(null);
+    if (!navigator.geolocation) {
+      setGeoError('Geolocation is not supported by your browser.');
+      setIsLocating(false);
+      return;
+    }
 
-                                    <p className="text-slate-300 font-medium">{comp.role}</p>
-                                    
-                                    <div className="flex flex-wrap justify-center md:justify-start gap-2 pt-2">
-                                        {comp.language.split(', ').map(l => (
-                                            <span key={l} className="px-3 py-1 bg-slate-800/80 border border-slate-600/50 text-slate-300 rounded-full text-xs uppercase tracking-wider font-semibold">
-                                                {l}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            {/* CTA */}
-                            <div className="relative z-10 mt-6 pt-6 border-t border-slate-700/50">
-                                <Link 
-                                    to={`/bookings/new/${comp.id}`} 
-                                    className="block w-full py-3 px-4 bg-[#D4AF37] hover:bg-[#FFD700] text-[#0F0F23] text-center rounded-xl font-bold tracking-wide shadow-lg transition-all duration-300 group-hover:scale-[1.01]"
-                                >
-                                    Engage Ambassador
-                                </Link>
-                            </div>
-                        </motion.div>
-                    ))
-                )}
-            </div>
-            
-            {/* End of list indicator to enforce intentional scrolling */}
-            <div className="text-center py-12 text-slate-500 text-sm tracking-widest font-semibold opacity-50">
-                END OF DIRECTORY
-            </div>
-        </div>
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoords({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error(error);
+        setGeoError('Unable to retrieve your location. Please check permissions.');
+        setIsLocating(false);
+      }
     );
+  };
+
+  // Automatically request on mount
+  useEffect(() => {
+    getLocation();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#0F0F23] p-4 lg:p-8">
+      <div className="mx-auto max-w-6xl space-y-8">
+        
+        {/* Header & Location Controls */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Find Companions</h1>
+            <p className="text-[#E8E8E8]/60 mt-2">Discover cultural ambassadors near you.</p>
+          </div>
+
+          <div className="flex items-center gap-3 bg-[#1A1A3E]/40 p-3 rounded-xl border border-white/5">
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              onClick={getLocation} 
+              loading={isLocating}
+              className="whitespace-nowrap"
+            >
+              <Navigation className="w-4 h-4 mr-2" />
+              {coords ? 'Update Location' : 'Use My Location'}
+            </Button>
+            <select
+              value={radiusKm}
+              onChange={(e) => setRadiusKm(Number(e.target.value))}
+              className="bg-[#0F0F23] text-white text-sm rounded-lg border border-white/10 px-3 py-2 outline-none focus:border-[#D4AF37]"
+            >
+              <option value={5}>Within 5 km</option>
+              <option value={10}>Within 10 km</option>
+              <option value={25}>Within 25 km</option>
+              <option value={50}>Within 50 km</option>
+            </select>
+          </div>
+        </div>
+
+        {geoError && (
+          <div className="bg-red-500/10 text-red-400 p-4 rounded-xl text-sm border border-red-500/20">
+            {geoError}
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-500/10 text-red-400 p-4 rounded-xl text-sm border border-red-500/20">
+            Failed to load companions. Please try again.
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading && (
+          <div className="py-20 flex flex-col items-center justify-center space-y-4">
+            <Spinner size="lg" className="text-[#D4AF37]" />
+            <p className="text-[#E8E8E8]/60">Scanning your area...</p>
+          </div>
+        )}
+
+        {/* Results Grid */}
+        {!isLoading && data && data.data.length === 0 && (
+          <div className="py-20 text-center">
+            <MapPin className="w-12 h-12 text-[#E8E8E8]/20 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white">No companions found</h3>
+            <p className="text-[#E8E8E8]/60 mt-2">Try expanding your search radius.</p>
+          </div>
+        )}
+
+        {!isLoading && data && data.data.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {data.data.map((profile) => (
+              <Card key={profile.id} className="flex flex-col hover:border-[#D4AF37]/50 transition-colors">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#D4AF37] to-[#B8962E] p-0.5">
+                    <img 
+                      src={profile.user?.avatar_url || `https://ui-avatars.com/api/?name=${profile.user?.name}&background=1A1A3E&color=fff`} 
+                      alt={profile.user?.name}
+                      className="w-full h-full rounded-full object-cover bg-[#0F0F23]"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-white">{profile.user?.name}</h3>
+                    <div className="flex items-center gap-1.5 text-sm text-[#D4AF37] mt-1">
+                      <Star className="w-4 h-4 fill-current" />
+                      <span>{profile.rating_avg > 0 ? profile.rating_avg.toFixed(1) : 'New'}</span>
+                      <span className="text-[#E8E8E8]/40 ml-1">({profile.total_bookings} trips)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-sm text-[#E8E8E8]/80 line-clamp-2 mb-4 flex-1">
+                  {profile.bio || 'No bio provided.'}
+                </div>
+
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {profile.languages?.slice(0, 3).map((lang) => (
+                    <Badge key={lang} variant="secondary" className="text-xs">{lang}</Badge>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-white/5 mt-auto">
+                  <div>
+                    <div className="text-lg font-bold text-white">{profile.hourly_rate_display}</div>
+                    <div className="text-xs text-[#E8E8E8]/50">per hour</div>
+                  </div>
+                  <Link to={`/book/${profile.user?.id}`}>
+                    <Button variant="primary" size="sm">Book Now</Button>
+                  </Link>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

@@ -27,4 +27,20 @@ final class StoreBookingRequest extends FormRequest
             'special_requests' => ['nullable', 'string', 'max:1000'],
         ];
     }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $start = $this->date('scheduled_start');
+            $end = $this->date('scheduled_end');
+
+            if ($start && $end && $start->diffInMinutes($end) < 60) {
+                $validator->errors()->add('scheduled_end', 'The booking must be for at least 1 hour.');
+            }
+            
+            if ($start && $start->diffInMinutes(now()) > -30) {
+                 $validator->errors()->add('scheduled_start', 'The booking must be scheduled at least 30 minutes in advance.');
+            }
+        });
+    }
 }

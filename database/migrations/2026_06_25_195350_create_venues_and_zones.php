@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('address');
             $table->geometry('location', subtype: 'point')->nullable();
-            $table->enum('category', ['RESTAURANT', 'EVENT_HALL', 'CONFERENCE', 'TEMPLE', 'MARKET', 'OTHER']);
+            $table->enum('category', ['restaurant', 'event_hall', 'conference', 'temple', 'market', 'other']);
             $table->boolean('is_approved')->default(true);
             $table->integer('capacity')->nullable();
             $table->timestamps();

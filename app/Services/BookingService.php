@@ -10,6 +10,7 @@ use App\Models\LedgerTransaction;
 use App\Models\RestrictedZone;
 use App\Models\User;
 use App\Models\Venue;
+use App\Enums\BookingStatus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -44,7 +45,22 @@ final class BookingService
             }
 
             $companion = User::findOrFail($validated['companion_id']);
-            $profile   = CompanionProfile::where('user_id', $companion->id)->firstOrFail();
+            $profile   = CompanionProfile::where('user_id', $companion->id)->lockForUpdate()->firstOrFail();
+
+            // Check for overlapping bookings
+            $hasOverlap = Booking::where('companion_id', $companion->id)
+                ->whereIn('status', ['PENDING', 'ACCEPTED', 'FUNDED', 'IN_PROGRESS'])
+                ->where(function ($q) use ($validated) {
+                    $q->where('scheduled_start', '<', $validated['scheduled_end'])
+                      ->where('scheduled_end', '>', $validated['scheduled_start']);
+                })
+                ->exists();
+
+            if ($hasOverlap) {
+                throw ValidationException::withMessages([
+                    'scheduled_start' => ['The companion is already booked for the selected time.'],
+                ]);
+            }
 
             $fare = $this->fareCalculator->calculate(
                 hourlyRateCents: $profile->hourly_rate_cents,
@@ -76,7 +92,7 @@ final class BookingService
     public function accept(Booking $booking, User $companion): Booking
     {
         return DB::transaction(function () use ($booking, $companion) {
-            $booking->transitionTo('ACCEPTED');
+            $booking->transitionTo(BookingStatus::ACCEPTED);
             $booking->save();
 
             return $booking->fresh();
@@ -89,7 +105,7 @@ final class BookingService
     public function fund(Booking $booking): Booking
     {
         return DB::transaction(function () use ($booking) {
-            $booking->transitionTo('FUNDED');
+            $booking->transitionTo(BookingStatus::FUNDED);
             $booking->save();
 
             $wallet = $booking->client->wallet;
@@ -119,7 +135,7 @@ final class BookingService
     public function startSession(Booking $booking): Booking
     {
         return DB::transaction(function () use ($booking) {
-            $booking->transitionTo('IN_PROGRESS');
+            $booking->transitionTo(BookingStatus::IN_PROGRESS);
             $booking->save();
 
             return $booking->fresh();
@@ -132,7 +148,7 @@ final class BookingService
     public function complete(Booking $booking): Booking
     {
         return DB::transaction(function () use ($booking) {
-            $booking->transitionTo('COMPLETED');
+            $booking->transitionTo(BookingStatus::COMPLETED);
             $booking->save();
 
             return $booking->fresh();
@@ -145,7 +161,7 @@ final class BookingService
     public function releasePayment(Booking $booking): Booking
     {
         return DB::transaction(function () use ($booking) {
-            $booking->transitionTo('PAID');
+            $booking->transitionTo(BookingStatus::PAID);
             $booking->save();
 
             $clientWallet    = $booking->client->wallet;
@@ -204,9 +220,9 @@ final class BookingService
     public function cancel(Booking $booking, string $reason): Booking
     {
         return DB::transaction(function () use ($booking, $reason) {
-            $wasFunded = $booking->status === 'FUNDED';
+            $wasFunded = $booking->status === BookingStatus::FUNDED;
 
-            $booking->transitionTo('CANCELLED');
+            $booking->transitionTo(BookingStatus::CANCELLED);
             $booking->special_requests = ($booking->special_requests ? $booking->special_requests . "\n" : '')
                 . '[CANCELLED] ' . $reason;
             $booking->save();
@@ -240,10 +256,14 @@ final class BookingService
     public function dispute(Booking $booking, string $reason): Booking
     {
         return DB::transaction(function () use ($booking, $reason) {
-            $booking->transitionTo('DISPUTED');
-            $booking->special_requests = ($booking->special_requests ? $booking->special_requests . "\n" : '')
-                . '[DISPUTED] ' . $reason;
-            $booking->save();
+            $booking->transitionTo(BookingStatus::DISPUTED);
+            
+            // Create the dispute ticket
+            $booking->disputeTickets()->create([
+                'raised_by' => request()->user()?->id ?? $booking->client_id, // Default to client if no request
+                'reason' => $reason,
+                'status' => 'OPEN',
+            ]);
 
             return $booking->fresh();
         });

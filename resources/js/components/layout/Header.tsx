@@ -32,7 +32,7 @@ export default function Header() {
     <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#0F0F23]/80 backdrop-blur-lg">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2">
+        <Link to="/dashboard" className="flex items-center gap-2">
           <span className="bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] bg-clip-text text-2xl font-extrabold tracking-tight text-transparent">
             Chulx
           </span>

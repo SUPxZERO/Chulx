@@ -6,7 +6,7 @@ namespace App\Enums;
 
 enum AvailabilityStatus: string
 {
-    case AVAILABLE = 'available';
-    case BUSY      = 'busy';
-    case OFFLINE   = 'offline';
+    case AVAILABLE = 'AVAILABLE';
+    case BUSY      = 'BUSY';
+    case OFFLINE   = 'OFFLINE';
 }

@@ -60,7 +60,7 @@ final class BookingController extends Controller
      */
     public function show(Booking $booking): JsonResponse
     {
-        $booking->load(['client', 'companion', 'venue']);
+        $booking->load(['client', 'companion', 'venue', 'extensions']);
 
         return response()->json([
             'data' => new BookingResource($booking),

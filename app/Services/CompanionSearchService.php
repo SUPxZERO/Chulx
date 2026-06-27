@@ -26,7 +26,7 @@ final class CompanionSearchService
      */
     public function search(array $filters): LengthAwarePaginator
     {
-        $query = CompanionProfile::query()->with('user');
+        $query = CompanionProfile::query()->with('user')->available();
 
         $latitude  = $filters['latitude'] ?? null;
         $longitude = $filters['longitude'] ?? null;

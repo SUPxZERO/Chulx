@@ -14,7 +14,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Home',     to: '/',            icon: <LayoutDashboard className="h-5 w-5" /> },
+  { label: 'Home',     to: '/dashboard',   icon: <LayoutDashboard className="h-5 w-5" /> },
   { label: 'Search',   to: '/companions',  icon: <Search className="h-5 w-5" /> },
   { label: 'Bookings', to: '/bookings',    icon: <Calendar className="h-5 w-5" /> },
   { label: 'Profile',  to: '/profile',     icon: <User className="h-5 w-5" /> },
@@ -28,7 +28,7 @@ export default function BottomNav() {
           <NavLink
             key={item.to}
             to={item.to}
-            end={item.to === '/'}
+            end={item.to === '/dashboard'}
             className="group relative flex flex-col items-center gap-0.5"
           >
             {({ isActive }) => (

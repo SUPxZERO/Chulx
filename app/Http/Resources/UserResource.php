@@ -28,6 +28,8 @@ final class UserResource extends JsonResource
             'avatar_url'  => $this->avatar_url,
             'is_verified' => $this->is_verified,
             'created_at'  => $this->created_at?->toIso8601String(),
+            'wallet'      => $this->whenLoaded('wallet'),
+            'companion_profile' => new CompanionProfileResource($this->whenLoaded('companionProfile')),
         ];
     }
 }

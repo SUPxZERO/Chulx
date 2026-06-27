@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -42,10 +43,25 @@ final class AuthController extends Controller
             'currency'      => config('chulx.currencies.primary', 'USD'),
         ]);
 
+        if (strtoupper($validated['role']) === 'COMPANION') {
+            \App\Models\CompanionProfile::create([
+                'user_id'           => $user->id,
+                'bio'               => '',
+                'hourly_rate_cents' => 0,
+                'languages'         => [],
+                'specialties'       => [],
+                'availability_status' => \App\Enums\AvailabilityStatus::OFFLINE,
+            ]);
+        }
+
         $token = $user->createToken('auth-token')->plainTextToken;
 
+        // Login the user to the web guard (to grant access to Filament)
+        Auth::guard('web')->login($user);
+        $request->session()->regenerate();
+
         return response()->json([
-            'data'  => new UserResource($user),
+            'user'  => new UserResource($user),
             'token' => $token,
         ], 201);
     }
@@ -67,8 +83,12 @@ final class AuthController extends Controller
 
         $token = $user->createToken('auth-token')->plainTextToken;
 
+        // Login the user to the web guard (to grant access to Filament)
+        Auth::guard('web')->login($user);
+        $request->session()->regenerate();
+
         return response()->json([
-            'data'  => new UserResource($user),
+            'user'  => new UserResource($user),
             'token' => $token,
         ]);
     }
@@ -80,6 +100,10 @@ final class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
 
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
         return response()->json(['message' => 'Logged out successfully.']);
     }
 
@@ -88,8 +112,9 @@ final class AuthController extends Controller
      */
     public function me(Request $request): JsonResponse
     {
+        $user = $request->user()->load(['wallet', 'companionProfile']);
         return response()->json([
-            'data' => new UserResource($request->user()),
+            'data' => new UserResource($user),
         ]);
     }
 }

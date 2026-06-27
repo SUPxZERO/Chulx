@@ -5,26 +5,18 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\MeetingVerification;
-use App\Services\TOTPService;
 use App\Enums\BookingStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class MeetingVerificationController extends Controller
 {
-    private TOTPService $totp;
-
-    public function __construct(TOTPService $totp)
-    {
-        $this->totp = $totp;
-    }
-
     /**
-     * Client generates the offline QR code.
+     * Client generates/retrieves the static 6-digit PIN.
      */
     public function generate(Request $request, Booking $booking)
     {
-        // Only the client can generate the QR code
+        // Only the client can generate the QR code/PIN
         if ($request->user()->id !== $booking->client_id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -35,25 +27,19 @@ class MeetingVerificationController extends Controller
 
         $verification = MeetingVerification::firstOrNew(['booking_id' => $booking->id]);
 
-        if (!$verification->exists) {
-            $verification->totp_secret = $this->totp->generateSeed();
+        if (!$verification->exists || !$verification->totp_secret) {
+            // Generate a secure 6-digit static PIN
+            $verification->totp_secret = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
             $verification->save();
         }
 
-        // Return the raw otpauth URI. The React app handles rendering the QR code offline.
-        $uri = $this->totp->generateOtpAuthUrl(
-            'Chulx',
-            'Client_' . $booking->client_id,
-            $verification->totp_secret
-        );
-
         return response()->json([
-            'uri' => $uri,
+            'pin' => $verification->totp_secret,
         ]);
     }
 
     /**
-     * Companion verifies the 6-digit TOTP code and locks in GPS coordinates.
+     * Companion verifies the 6-digit PIN and locks in GPS coordinates.
      */
     public function verify(Request $request, Booking $booking)
     {
@@ -82,11 +68,9 @@ class MeetingVerificationController extends Controller
             return response()->json(['message' => 'Already verified.'], 400);
         }
 
-        // Verify the code with a 30s drift window
-        $isValid = $this->totp->verify($verification->totp_secret, $validated['code']);
-
-        if (!$isValid) {
-            return response()->json(['message' => 'Invalid or expired code.'], 422);
+        // Verify the static PIN
+        if (!hash_equals($verification->totp_secret, $validated['code'])) {
+            return response()->json(['message' => 'Invalid PIN.'], 422);
         }
 
         // Lock it in using a DB transaction
@@ -101,6 +85,7 @@ class MeetingVerificationController extends Controller
             // Transition the booking to IN_PROGRESS. 
             // This strictly locks the Escrow and starts the billing clock.
             $booking->transitionTo(BookingStatus::IN_PROGRESS);
+            $booking->save();
         });
 
         return response()->json([

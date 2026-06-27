@@ -32,6 +32,7 @@ final class BookingResource extends JsonResource
             'companion_payout_cents' => $this->companion_payout_cents,
             'purpose'               => $this->purpose,
             'special_requests'      => $this->special_requests,
+            'extensions'            => $this->whenLoaded('extensions'),
             'created_at'            => $this->created_at?->toIso8601String(),
             'updated_at'            => $this->updated_at?->toIso8601String(),
         ];

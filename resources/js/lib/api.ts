@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import axios from 'axios';
+import { useAuthStore } from '@/stores/authStore';
 
 const TOKEN_KEY = 'chulx_auth_token';
 
@@ -33,10 +34,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
-      localStorage.removeItem(TOKEN_KEY);
+      // Clear Zustand store and local storage safely
+      useAuthStore.getState().logout();
 
       // Only redirect if we're not already on the login page to avoid loops
-      if (!window.location.pathname.includes('/login')) {
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }
     }

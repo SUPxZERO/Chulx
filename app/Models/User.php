@@ -24,6 +24,8 @@ class User extends Authenticatable
         'is_active',
         'strike_history',
         'password',
+        'date_of_birth',
+        'gender',
     ];
 
     protected $hidden = [
@@ -37,6 +39,7 @@ class User extends Authenticatable
         'is_verified' => 'boolean',
         'is_active' => 'boolean',
         'strike_history' => 'array',
+        'date_of_birth' => 'date',
     ];
 
     protected static function boot()
@@ -81,5 +84,30 @@ class User extends Authenticatable
             // Invalidate all Sanctum tokens to simulate immediate JWT invalidation
             $this->tokens()->delete();
         }
+    }
+
+    public function payoutRequests()
+    {
+        return $this->hasMany(PayoutRequest::class);
+    }
+
+    public function kycVerifications()
+    {
+        return $this->hasMany(KycVerification::class);
+    }
+
+    public function companionServiceAreas()
+    {
+        return $this->hasMany(CompanionServiceArea::class, 'companion_id');
+    }
+
+    public function companionSchedules()
+    {
+        return $this->hasMany(CompanionSchedule::class, 'companion_id');
+    }
+
+    public function companionCalendarBlocks()
+    {
+        return $this->hasMany(CompanionCalendarBlock::class, 'companion_id');
     }
 }

@@ -21,10 +21,19 @@ class WebhookController extends Controller
     public function abaPayway(Request $request)
     {
         // 1. Verify HMAC Signature
-        // In a real application, we would calculate HMAC of payload using ABA_PAYWAY_API_KEY
-        // and compare it with the signature sent in the request header.
-        $isValidSignature = true; // Mocked for now
+        $payload = $request->getContent();
+        $apiKey = config('chulx.payway.api_key', 'mock_secret_key');
+        // In local development, bypass HMAC if X-Payway-Signature is missing, to allow manual testing
+        $receivedSignature = $request->header('X-Payway-Signature');
         
+        $isValidSignature = false;
+        if ($receivedSignature) {
+            $computedSignature = base64_encode(hash_hmac('sha512', $payload, $apiKey, true));
+            $isValidSignature = hash_equals($computedSignature, $receivedSignature);
+        } elseif (app()->environment('local')) {
+            $isValidSignature = true;
+        }
+
         if (!$isValidSignature) {
             Log::warning('ABA Payway Webhook: Invalid Signature.', $request->all());
             return response()->json(['status' => 'error', 'message' => 'Invalid signature'], 403);
@@ -55,16 +64,23 @@ class WebhookController extends Controller
         DB::transaction(function () use ($booking, $request) {
             // State Machine Transition
             $booking->transitionTo(BookingStatus::FUNDED);
+            $booking->save();
 
-            // Record Escrow Deposit
+            $totalCents = $booking->base_amount_cents + $booking->safety_fee_cents;
+
+            $wallet = $booking->client->wallet;
+            $wallet->increment('hold_amount_cents', $totalCents);
+
+            // Record Escrow Deposit directly from Gateway
             LedgerTransaction::create([
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'wallet_id' => $wallet->id,
                 'booking_id' => $booking->id,
-                'user_id' => $booking->client_id,
-                'type' => LedgerType::ESCROW_DEPOSIT,
-                'amount_cents' => $booking->total_cents,
-                'balance_after_cents' => $booking->total_cents, // Simplified
-                'gateway_reference_id' => $request->input('apv') ?? 'ABA_MOCK_' . time(),
-                'description' => 'Client payment locked in Escrow (ABA Payway)',
+                'type' => 'ESCROW_DEPOSIT',
+                'amount_cents' => $totalCents,
+                'running_balance_cents' => $wallet->balance_cents, // Gateway direct
+                'reference_id' => $request->input('apv') ?? 'ABA_MOCK_' . time(),
+                'metadata' => ['action' => 'gateway_escrow', 'gateway' => 'ABA_PAYWAY'],
             ]);
         });
 

@@ -32,6 +32,9 @@ class Booking extends Model
         'total_cents',
         'fee_cents',
         'notes',
+        'cancellation_reason',
+        'cancelled_by',
+        'cancellation_penalty_cents',
     ];
 
     protected $casts = [
@@ -139,5 +142,25 @@ class Booking extends Model
             BookingStatus::CANCELLED,
             BookingStatus::PAID,
         ]);
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function bookingExtensions(): HasMany
+    {
+        return $this->hasMany(BookingExtension::class);
+    }
+
+    public function disputeTickets(): HasMany
+    {
+        return $this->hasMany(DisputeTicket::class);
+    }
+
+    public function locationPings(): HasMany
+    {
+        return $this->hasMany(LocationPing::class);
     }
 }
